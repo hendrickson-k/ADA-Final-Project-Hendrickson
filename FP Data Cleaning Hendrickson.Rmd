@@ -1,0 +1,160 @@
+---
+title: "FP Data Cleaning Hendrickson"
+author: "Katrina Hendrickson"
+date: "2025-11-23"
+output: html_document
+---
+
+Install packages
+```{r}
+pacman::p_load(haven, readr, dplyr, openxlsx)
+```
+
+If importing the data from NHANES, start here
+
+Download the data
+``` {r}
+demo <- read_xpt("DEMO_L.xpt")
+hiq <- read_xpt("HIQ_L.xpt")
+tchol <- read_xpt("TCHOL_L.xpt")
+```
+
+Merge the data into one dataset
+```{r}
+rawdata1 <- merge(demo, hiq, by = "SEQN") #First merge demographics and health insurance
+rawdata <- merge(rawdata1, tchol, by = "SEQN") #Then merge to add cholesterol
+```
+
+Export the combined raw data
+```{r}
+write.xlsx(rawdata, "Raw data.xlsx")
+```
+
+If importing the data from GitHub, start here
+
+Drop all of the variables that will not be used in the analysis to make analysis run faster
+```{r}
+trimdata <- subset(rawdata, select = c("SEQN", "LBXTC", "RIDAGEYR", "RIAGENDR", "RIDRETH3", "INDFMPIR", "HIQ011", "HIQ032A")) #Selects only the variables I want to keep
+```
+
+Clean the insurance data into Private, Public, and None
+```{r}
+#Get the private and uninsured populations labeled
+triminsdata <- trimdata %>%
+  mutate(instype = case_when(
+    HIQ011 == 1 & HIQ032A == 1 ~ "Private",
+    HIQ011 == 2 ~ "None"
+  ))
+
+#Make dataset that is just instype so I can change NA into public insurance
+insdata <- subset(triminsdata, select = c("SEQN", "instype"))
+
+#Recode NAs into 0
+insdata[is.na(insdata)] <- 0
+
+#Make a dataset with insurance at the three levels
+insdata1 <- insdata %>%
+  mutate(instype1 = case_when(
+    instype == "Private" ~ "Private",
+    instype == "None" ~ "None",
+    instype == 0 ~ "Public"
+  ))
+```
+
+Make a variable with only private and public insurance
+```{r}
+#df_filtered_dplyr <- trimdata %>%
+#  filter(HIQ011 < 3)
+```
+
+Make new dataset without insurance, and add new insurance variable from above
+```{r}
+insmissdata <- subset(rawdata, select = c("SEQN", "LBXTC", "RIDAGEYR", "RIAGENDR", "RIDRETH3", "INDFMPIR", "HIQ011")) #Make a dataset with all the used varibales except insurance
+insurance <- subset(insdata1, select = c("SEQN", "instype1")) #Make a dataset with only insurance
+
+inscleandata <- merge(insmissdata, insurance, by = "SEQN")
+```
+
+Make the final clean dataset
+```{r}
+cleandata1 <- na.omit(inscleandata)
+```
+
+Make income into a categorical variable
+```{r}
+
+
+cleandata2 <- cleandata1 %>%
+  mutate(inclevel = case_when(
+     INDFMPIR < 1 ~ 1,
+     INDFMPIR >=1 & INDFMPIR <2 ~ 2,
+     INDFMPIR >=2 & INDFMPIR <3 ~ 3,
+     INDFMPIR >=3 & INDFMPIR <4 ~ 4,
+     INDFMPIR >=4 & INDFMPIR <5 ~ 5,
+     INDFMPIR >=5 ~ 6
+  ))
+
+cleandata <- subset(cleandata2, select = c("SEQN", "LBXTC", "RIDAGEYR", "RIAGENDR", "RIDRETH3", "inclevel", "instype1", "HIQ011"))
+```
+
+Make the cholesterol levels categorical
+```{r}
+cleandata2 <- cleandata %>%
+  mutate(clevel = case_when(
+    LBXTC < 240 ~ 0, #Normal
+    LBXTC >= 240 ~ 1 #High
+  ))
+```
+
+Omit anyone under 18
+```{r}
+cleandata3 <- cleandata2 %>%
+  filter(RIDAGEYR > 17)
+```
+
+```{r}
+#Categorize people by decade of age, including people 18 and 19 into the 20s due to the size of that group
+cleandata3 <- cleandata3 %>%
+  mutate(age.cat.dec = case_when(
+    RIDAGEYR <= 30 ~ 1,
+    RIDAGEYR > 30 & RIDAGEYR <= 40 ~ 2,
+    RIDAGEYR > 40 & RIDAGEYR <= 50 ~ 3,
+    RIDAGEYR > 50 & RIDAGEYR <= 60 ~ 4,
+    RIDAGEYR > 60 & RIDAGEYR <= 70 ~ 5,
+    RIDAGEYR > 70 ~ 6
+  ))
+
+cleandata3 <- cleandata3 %>%
+  mutate(age.cat.dec2 = case_when(
+    RIDAGEYR <= 30 ~ 1,
+    RIDAGEYR > 30 & RIDAGEYR <= 40 ~ 2,
+    RIDAGEYR > 40 & RIDAGEYR <= 50 ~ 3,
+    RIDAGEYR > 50 & RIDAGEYR <= 60 ~ 4,
+    RIDAGEYR > 60 ~ 5
+  ))
+```
+
+```{r}
+cleandata <- subset(cleandata3, select = c("SEQN", "clevel", "RIDAGEYR", "age.cat.dec", "RIAGENDR", "RIDRETH3", "inclevel", "instype1", "age.cat.dec2"))
+write.xlsx(cleandata, "Clean data.xlsx")
+```
+
+Make a dataset without uninsured people
+```{r}
+cleandatainsure <- subset(cleandata3, select = c("SEQN", "clevel", "RIDAGEYR", "age.cat.dec", "RIAGENDR", "RIDRETH3", "inclevel", "HIQ011", "instype1", "age.cat.dec2"))
+
+cleandatainsure <- cleandatainsure %>%
+  filter(HIQ011 < 2)
+
+write.xlsx(cleandatainsure, "Clean data Insured.xlsx")
+```
+
+
+
+
+
+
+
+
+
+

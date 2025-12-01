@@ -1,0 +1,215 @@
+---
+title: "Final Project Data Cleaning ADA"
+author: "Katrina Hendrickson"
+date: "2025-10-31"
+output: html_document
+---
+
+Install packages
+```{r}
+pacman::p_load(haven, dplyr, openxlsx, odds.n.ends, blorr, lmtest, car, broom, tidyverse, readr, jtools, ggplot2, table1, DiagrammeR, rsvg)
+```
+
+
+Download the data
+``` {r}
+data <- read.xlsx("Clean data.xlsx")
+```
+
+Look at the data
+```{r}
+head(data)
+summary(data)
+```
+
+Box tidwell for age
+```{r}
+data <- data %>%
+  mutate(age.times.logage = RIDAGEYR * log(RIDAGEYR))
+
+modelbt <- glm(clevel ~ RIDAGEYR + age.times.logage, data = data, family = "binomial")
+
+summary(modelbt)
+```
+
+
+Look at the plot
+```{r}
+  ggplot(data, aes(x = as.factor(instype1), y = clevel, fill = instype1)) +
+      geom_boxplot() +
+      labs(x = "Insurance", y = "Cholesterol") +
+      theme_bw()
+```
+
+
+
+Look at the base model
+```{r}
+model1 <- glm(clevel ~ instype1, data = data, family = "binomial")
+summary(model1)
+odds.n.ends(model1)
+```
+
+Look at the everything model with age2
+```{r}
+model2 <- glm(clevel ~ instype1 + as.factor(age.cat.dec2) + as.factor(inclevel) + as.factor(RIDRETH3) + as.factor(RIAGENDR), data=data, family="binomial")
+summary(model2)
+odds.n.ends(model2)
+vif(model2)
+```
+
+Interpretation: The odds of having high cholesterol among those with Public insurance is 0.65 times that of people with no insurance
+
+Interpretation: The odds of having high cholesterol among those with private insurance is 0.71 times that of people with no insurance but not statistically significant
+
+Other factors that are associated with high cholesterol are age and gender
+
+Interpretation: The odds of having high cholesterol among those who are female is 1.42 times that of people who are male
+
+Test for influential observations
+Cooks distance is 4/4983 = 0.0008, many are above that but all are less than 0.005, so I am not worried
+```{r}
+# Plot Cooks's distance
+plot(model2, which = 4, id.n = 3, col="red") # which = 4 gives Cook's distance calculations (see https://stat.ethz.ch/R-manual/R-patched/library/stats/html/plot.lm.html)
+abline(h=1, col="red", lty=2)  # Add a threshold line
+```
+
+Download the data
+``` {r}
+datainsured <- read.xlsx("Clean data Insured.xlsx")
+```
+
+Look at the data
+```{r}
+head(datainsured)
+summary(datainsured)
+```
+Look at the model without uninsured people (unajusted)
+```{r}
+model6 <- glm(clevel ~ instype1, data=datainsured, family="binomial")
+summary(model6)
+odds.n.ends(model6)
+```
+
+Look at the model without uninsured people
+```{r}
+model5 <- glm(clevel ~ instype1 + as.factor(age.cat.dec2) + as.factor(inclevel) + as.factor(RIDRETH3) + as.factor(RIAGENDR), data=datainsured, family="binomial")
+summary(model5)
+odds.n.ends(model5)
+vif(model5)
+```
+
+```{r}
+# Plot Cooks's distance
+plot(model5, which = 4, id.n = 3, col="red") # which = 4 gives Cook's distance calculations (see https://stat.ethz.ch/R-manual/R-patched/library/stats/html/plot.lm.html)
+abline(h=1, col="red", lty=2)  # Add a threshold line
+```
+
+
+Make a flow chart of observations
+```{r}
+figure1 <- grViz("digraph flowchart {
+     
+      node [fontname = Helvetica, shape = rectangle, fontsize=15] 
+      
+      node1 [label = '@@1']
+      node2 [label = '@@2']
+      node3 [label = '@@3']
+      node4 [label = '@@4']
+      
+      node1 -> node2 -> node3 -> node4
+}
+      [1]: 'Records received from NHANES n = 8,068'
+      [2]: 'Excluding 2,042 individuals with missing data n = 6,026'
+      [3]: 'Excluding 1,043 individuals under the age of 18 n = 4,983'
+      [4]: 'Excluding 390 individuals without insurance n = 4,593'
+      ")
+figure1
+```
+Export the above figure
+```{r}
+figure1 %>%
+  DiagrammeRsvg::export_svg() %>% # convert to SVG format
+  charToRaw() %>% # converts SVG text string into binary format
+  rsvg::rsvg_pdf("Figure 1.pdf") # the output file is named as "Figure 1"
+```
+
+
+```{r}
+head(data)
+summary(data)
+```
+
+```{r}
+data$inclevel <- as.factor(data$inclevel)
+data$RIAGENDR <- as.factor(data$RIAGENDR)
+data$age.cat.dec2 <- as.factor(data$age.cat.dec2)
+data$RIDRETH3 <- as.factor(data$RIDRETH3)
+data$clevel <- as.factor(data$clevel)
+
+
+data <- data %>%
+  mutate(clevel = case_when(
+    clevel == 0 ~ "Normal",
+    clevel == 1 ~ "High"
+  ))
+
+
+data <- data %>%
+  mutate(inclevel = case_when(
+    inclevel == 1 ~ "Below Poverty Level",
+    inclevel == 2 ~ "1 to 2 Times the Poverty Level",
+    inclevel == 3 ~ "2 to 3 Times the Poverty Level",
+    inclevel == 4 ~ "3 to 4 Times the Poverty Level",
+    inclevel == 5 ~ "4 to 5 Times the Poverty Level",
+    inclevel == 6 ~ "More Than 5 Times the Poverty Level"
+  ))
+
+data <- data %>%
+  mutate(RIAGENDR = case_when(
+    RIAGENDR == 1 ~ "Male",
+    RIAGENDR == 2 ~ "Female"
+  ))
+
+data <- data %>%
+  mutate(RIDRETH3 = case_when(
+    RIDRETH3 == 1 ~ "Mexican American",
+    RIDRETH3 == 2 ~ "Other Hispanic",
+    RIDRETH3 == 3 ~ "Non-Hispanic White",
+    RIDRETH3 == 4 ~ "Non-Hispanic Black",
+    RIDRETH3 == 6 ~ "Non-Hispanic Asian",
+    RIDRETH3 == 7 ~ "Other Race - Including Multiracial"
+  ))
+
+data <- data %>%
+  mutate(age.cat.dec2 = case_when(
+    age.cat.dec2 == 1 ~ "Ages 18-30",
+    age.cat.dec2 == 2 ~ "Ages 31-30",
+    age.cat.dec2 == 3 ~ "Ages 41-50",
+    age.cat.dec2 == 4 ~ "Ages 51-60",
+    age.cat.dec2 == 5 ~ "Ages 61 and up"
+  ))
+
+label(data$clevel) <- "Cholesterol Level"
+label(data$RIAGENDR) <- "Sex"
+label(data$age.cat.dec2) <- "Age"
+label(data$RIDRETH3) <- "Race/Ethnicity"
+label(data$inclevel) <- "Income Level"
+label(data$instype1) <- "Insurance Type"
+
+table1(~ clevel + age.cat.dec2 + RIAGENDR + RIDRETH3 + inclevel|instype1, overall = "Total", rowlabelhead = "Variable", data)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
