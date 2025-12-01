@@ -11,12 +11,12 @@ There are three options for the data to start with:
   4) There is an additional dataset that is created in the cleaning code. This dataset removed anyone who is uninsured, making analysis between public and private insurance easier. This data is called "Clean data Insured.Rmd"
 
 The variables in this project include:
-  Cholesterol Level: The total cholesterol (mg/dL), listed as high if it was 240 or greater, and normal if it was below 240.
-  Insurance type: Private, Public, or None. If a participant had both public and private it was marked as private. 
-  Age: Categorized approximately by decade, with everyone 18-30 in one group and everyone 61 and older in one group.
-  Sex: Male or Female.
-  Race/Ethnicity: Mexican American, Non-Hispanic Asian, Black, and White, other Hispanic, and Other race - including multiracial.
-  Income: Measured as a ratio of family income to the poverty level then categorized. 
+  1) Cholesterol Level: The total cholesterol (mg/dL), listed as high if it was 240 or greater, and normal if it was below 240.
+  2) Insurance type: Private, Public, or None. If a participant had both public and private it was marked as private. 
+  3) Age: Categorized approximately by decade, with everyone 18-30 in one group and everyone 61 and older in one group.
+  4) Sex: Male or Female.
+  5) Race/Ethnicity: Mexican American, Non-Hispanic Asian, Black, and White, other Hispanic, and Other race - including multiracial.
+  6) Income: Measured as a ratio of family income to the poverty level then categorized. 
 
 Once the data is cleaned, analysis is run using "Final Project Code.Rmd" The analysis done is logistic regression, so the first step is testing the assumptions. The first assumption is linearity of age, using Box-Tidwell. This assumption is not met, so further analysis will be using age as a categorical variable. Next the models are run, comparing:
   1) Insurance (public, private, and none) to cholesterol level
